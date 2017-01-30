@@ -31,8 +31,30 @@ void *eat_meal(void *phil){
  * If both acquired, eat one course.
  */
   phil_data *philosopher = (phil_data *)phil;
-	printf("Eating meal %ld\n", philosopher->phil_num);
-	pthread_exit(NULL);
+	int num = philosopher->phil_num;
+	while (philosopher->course < 3) {
+		pthread_mutex_lock(&mutexes[num]);
+		philosopher -> forks = one;
+
+		int second_fork = (num) + 1;
+		if(num == num_threads-1) {
+			second_fork = 0;
+		}
+
+		if(pthread_mutex_trylock(&mutexes[second_fork]) == 0) {
+			philosopher -> forks = two;
+			sleep(1);
+			printf("Philosper %ld Eating meal %ld\n", num, philosopher->course);
+			philosopher -> course += 1;
+			pthread_mutex_unlock(&mutexes[num]);
+			pthread_mutex_unlock(&mutexes[second_fork]);
+		} else {
+			pthread_mutex_unlock(&mutexes[num]);
+		}
+		philosopher -> forks = none;
+	}
+
+	pthread_exit(NULL); // this referes to the current thread
 }
 
 /* ****************Add the support for pthreads in function below ***************** */
@@ -59,15 +81,9 @@ int main( int argc, char **argv ){
 
 /* Initialize Mutex, Create threads, Join threads and Destroy mutex */
 
-	/*
-		1. create threads
-		2. while meals eaten are less than N*3
-		3. loop for some condition (number of threads)
-		4. acquire mutex
-		5. if acuired pthread_create(eatmeal)
-
-		10. Terminate threads (pthread_exit(NULL))
-	*/
+	for( int i=0; i<num_philosophers; i++) {
+		pthread_mutex_init(&mutexes[i], NULL);
+	}
 
 	for(long i=0; i<num_threads; i++ ) {
 		printf("In main: creating thread %ld\n", i);
@@ -79,6 +95,13 @@ int main( int argc, char **argv ){
 		}
 	}
 
+	for (int i=0; i<num_threads; i++) {
+		pthread_join(threads[i], NULL);
+	}
+
+	for(int i=0; i<num_philosophers; i++) {
+		pthread_mutex_destroy(&mutexes[i]);
+	}
 	pthread_exit(NULL);
 	return 0;
 }
