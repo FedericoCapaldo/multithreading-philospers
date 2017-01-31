@@ -31,28 +31,24 @@ void *eat_meal(void *phil){
  * If both acquired, eat one course.
  */
   phil_data *philosopher = (phil_data *)phil;
-	int num = philosopher->phil_num;
-	while (philosopher->course < 3) {
-		pthread_mutex_lock(&mutexes[num]);
-		philosopher -> forks = one;
-
-		int second_fork = (num) + 1;
-		if(num == num_threads-1) {
-			second_fork = 0;
-		}
-
-		if(pthread_mutex_trylock(&mutexes[second_fork]) == 0) {
-			philosopher -> forks = two;
-			sleep(1);
-			printf("Philosper %ld Eating meal %ld\n", num, philosopher->course);
-			philosopher -> course += 1;
-			pthread_mutex_unlock(&mutexes[num]);
-			pthread_mutex_unlock(&mutexes[second_fork]);
-		} else {
-			pthread_mutex_unlock(&mutexes[num]);
-		}
-		philosopher -> forks = none;
+	int first_fork = philosopher->phil_num;
+	int second_fork = first_fork+1;
+	if (first_fork == num_threads-1) {
+		second_fork = 0;
 	}
+
+	int course = philosopher->course;
+	while(course < 3) {
+		if(pthread_mutex_trylock(&mutexes[first_fork]) == 0) {
+			if(pthread_mutex_trylock(&mutexes[second_fork]) == 0) {
+				sleep(1);
+				printf("Philosper %d eating course %d\n", first_fork, course);
+				++course;
+				pthread_mutex_unlock(&mutexes[second_fork]);
+			}
+			pthread_mutex_unlock(&mutexes[first_fork]);
+		}
+  }
 
 	pthread_exit(NULL); // this referes to the current thread
 }
@@ -86,8 +82,7 @@ int main( int argc, char **argv ){
 	}
 
 	for(long i=0; i<num_threads; i++ ) {
-		printf("In main: creating thread %ld\n", i);
-		// need to pass philosopher struct as a paramenter
+		printf("In main: creating philosopher %ld\n", i);
 		int err = pthread_create(&threads[i], NULL, eat_meal, (void *)&philosophers[i]);
 		if(err) {
 			printf("ERROR; return code from pthread_create() is %d\n", err);
